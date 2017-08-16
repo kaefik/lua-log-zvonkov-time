@@ -103,15 +103,20 @@ function readLogZvonkovFile (namef)
   return res
 end
 
+-- TODO: сделать функцию фильтрации из общего потока данных
 
--- table.sort(tabs)
--- printTable2Dim(tabs)
--- printTable2Dim(inputdata)
+
 
 -- END Функции
 
 
+-- начало основной программы
+
 resultTable =readCfgFile(nameFlog)
 inputData = readLogZvonkovFile(namef)
+
+for k,v in pairs(resultTable) do
+  print(k)
+end
 
 print("run script...")
