@@ -1,5 +1,8 @@
 -- версия выгрузки лога звонков на Lua
 
+local util = require("iutil")
+local surf = require("surf")
+
 -- входные параметры
 local namef = "Report.csv"
 local nameFlog = "list-num-tel.cfg"
@@ -32,28 +35,13 @@ function createDataTelMans()
    return value
 end
 
--- TODO: сделать функцию универсальную независимо от размерности таблицы (рекурсивная)
--- распечатка в консоли содержимое таблиц
-function printTable (tbl)
-  for k,v in pairs(tbl) do
-    print(k,v)
-  end
-end
--- распечатка дыумерных  массивов
-function printTable2Dim (tbl)
-  for k,v in pairs(tbl) do
-    print(k)
-    printTable(v)
-  end
+-- сохранение строки stroka в файл namefile
+function saveToFile(namefile,stroka)
+  file = io.open (namefile,"w")
+  file:write(stroka)
+  file:close()
 end
 
--- разделение строки str по указанному символуsimbol
-function splitString(str, simbol)
-  local words = {}
-  for w in str:gmatch("([^"..simbol.."]*)") do
-    table.insert(words, w) end
-  return words
-end
 
 -- открытие файла, возвращает таблицу с номерами строк, нумерация с 1
 function readFile(namef)
@@ -103,13 +91,6 @@ function readLogZvonkovFile (namef)
   return res
 end
 
--- n = tonumber(line)   -- try to convert it to a number
---     if n == nil then
---       error(line .. " is not a valid number")
---     else
---       print(n*2)
---     end
-
 -- получить все ключи с таблицы mtab
 function getKeysTable(mtab)
   keys = {}
@@ -123,21 +104,20 @@ end
 
 -- TODO: экспорт данных таблицы в файл xlsx
 
-function getRawLogFile(begyearmonth,begday,endyearmonth,endday)
-  begyearmonth = "2017-08"
-  endyearmonth = "2017-08"
-  begday = "14"
-  endday = "15"
+-- получить данные из сервера
+function getRawLogFile(namefile,begday,begmonth,begyear,endday,endmonth,endyear)
+  begyearmonth = begyear.."-"..begmonth
+  endyearmonth = endyear.."-"..endmonth
+  -- begday = "14"
+  -- endday = "14"
   suri = "http://voip.2gis.local/cisco-stat/cdr.php?s=1&t=&order=dateTimeOrigination&sens=DESC&current_page=0&posted=1&current_page=0&fromstatsmonth="..begyearmonth.."&tostatsmonth="..endyearmonth.."&Period=Day&fromday=true&fromstatsday_sday="..begday.."&fromstatsmonth_sday="..begyearmonth.."&today=true&tostatsday_sday="..endday.."&tostatsmonth_sday="..endyearmonth.. "&callingPartyNumber=&callingPartyNumbertype=2&originalCalledPartyNumber=%2B7&originalCalledPartyNumbertype=2&origDeviceName=&origDeviceNametype=1&destDeviceName=&destDeviceNametype=1&resulttype=min&image16.x=28&image16.y=8"
   suri2 = "http://voip.2gis.local/cisco-stat/export_csv.php"
-	-- print(suri)
-
-  local http=require'socket.http'
-  body,c,l,h = http.request(suri)
-  body,c,l,h = http.request(suri2)
-  print('status line',l)
-  print('body',body)
-
+  _,_,headers = Open(suri)
+  -- printTable(headers)
+  value_cookie = getCookie(headers)
+  headers = setCookie(headers,value_cookie)
+  h1,_,headers1 = Open(suri2,headers)
+  saveToFile(namefile,h1)
 end
 
 -- END Функции
@@ -145,7 +125,7 @@ end
 
 -- начало основной программы
 
-getRawLogFile()
+getRawLogFile(namef,"28","08","2017","28","08","2017")
 
 resultTable =readCfgFile(nameFlog)
 rawData = readLogZvonkovFile(namef)
@@ -191,15 +171,11 @@ end
 
 --  сохранение в файл csv
 print("сохранение в файл csv...")
-file = io.open ("resultTable.csv","w")
 stroka = "ФИО РГ"..";".."номер телефона"..";".."ФИО МПП"..";".."общее кол-во звонков" ..";".."общая продолжительность сек"..";".."кол-во результатив. звонков"..";".."продолжит. результат. звонков".."\n"
-file:write(stroka)
 for k,v in pairs(resultTable) do
-  stroka = v.fio_rg..";"..k..";"..v.fio_man..";"..v.totalzv ..";"..v.totalsec..";"..v.kolresult..";"..v.secresult.."\n"
-  file:write(stroka)
+  stroka = stroka..v.fio_rg..";"..k..";"..v.fio_man..";"..v.totalzv ..";"..v.totalsec..";"..v.kolresult..";"..v.secresult.."\n"
 end
-file:close()
-
+saveToFile("resultTable.csv",stroka)
 --
 -- value["fio_rg"]=""            -- ФИО РГ
 -- value["fio_man"]=""            -- ФИО менеджера
